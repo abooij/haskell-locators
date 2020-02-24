@@ -15,7 +15,7 @@ opposite LocatesRight = LocatesLeft
 
 -- Type of reals equipped with locators.
 --
--- Compared to the definition on UTT, we have dropped the data
+-- Compared to the definition in UTT, we have dropped the data
 -- specifying the real itself, keeping only the locator.  This is
 -- justified because given only the output "bits" of a locator, we can
 -- recover the corresponding subsets of the rationals, and
@@ -520,7 +520,7 @@ main = do
   print "intBound"
   print $ intBound (q 100.5)
   print "sdr"
-  let q2 _ = mkRat 2 -- let q2 = mkRat' 2
+  let q2 _ = mkRat 20 -- let q2 = mkRat' 2
   --print $ sdrFinite (mkPlus (q2 "a") (mkPlus (q2 "b") (mkPlus (q2 "c") (mkPlus (q2 "d") (mkPlus (q2 "e") (mkPlus (q2 "f") (mkPlus (q2 "g") (mkPlus (q2 "h") (q2 "i"))))))))) 5
   print $ sdrFinite (mkTimes (q2 "a") (mkTimes (q2 "b") (mkTimes (q2 "c") (q2 "d")))) 5
   -- let q2' = mkRat' 2
@@ -532,5 +532,7 @@ main = do
   print $ sdrFinite (mkPlus (q 20) (q 0.5)) 2
   print $ sdrFinite (q 16) 2
   print $ sdrFinite (foldr1 mkPlus (replicate 10 (q (-2)))) 5
-  print $ sdrFinite (foldr1 mkTimes (replicate 4 (q (-2)))) 5
+  print $ sdrFinite (foldr1 mkTimes (replicate 4 (q (-20)))) 5
   print $ sdrFinite (mkTimes (q 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002) (q 300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000)) 2
+
+main' = print $ sdrFinite (foldr1 mkTimes (replicate 5 (mkRat (2)))) 5
