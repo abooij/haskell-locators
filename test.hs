@@ -24,40 +24,40 @@ opposite LocatesRight = LocatesLeft
 --
 -- The locator accepts two rationals `q` and `r` as input, where it is
 -- a requirement that `q<r`, although this is not checked explicitly.
-type RL = Rational -> Rational -> Location
+type Locator = Rational -> Rational -> Location
 -- `locatesLeft l q r` is true when the real locates to the left of
 -- `r`.  That is, if we think of `l` as representing a real `x`, then
 -- `locatesLeft l q r -> (x < r)`.
-locatesLeft :: RL -> Rational -> Rational -> Bool
+locatesLeft :: Locator -> Rational -> Rational -> Bool
 locatesLeft l q r = l q r == LocatesLeft
-locatesRight :: RL -> Rational -> Rational -> Bool
+locatesRight :: Locator -> Rational -> Rational -> Bool
 locatesRight l q r = l q r == LocatesRight
 
 -- Construct a real with a locator for a given rational number `s`.
 mkRat = mkRat_i
 
-mkRat_i :: Rational -> RL
+mkRat_i :: Rational -> Locator
 mkRat_i s q r
   | q < s = LocatesRight
   | otherwise = LocatesLeft
 
-mkRat_ii :: Rational -> RL
+mkRat_ii :: Rational -> Locator
 mkRat_ii s q r
   | s < r = LocatesLeft
   | otherwise = LocatesRight
 
 -- Debugging variant of `mkRat` which outputs a given text every time it's invoked.
-mkRat' :: Rational -> String -> RL
+mkRat' :: Rational -> String -> Locator
 mkRat' s str q r = str `trace` mkRat s q r
 
 -- Given a real with a locator, compute a lower bound for it.
 lowerBound = lowerBound_ii
 
-lowerBound_i :: RL -> Rational
+lowerBound_i :: Locator -> Rational
 lowerBound_i l = head [fromInteger (q-1)|q<-[0,-1..], l (fromInteger (q-1)) (fromInteger q) == LocatesRight]
 
 -- Try only exponentials.
-lowerBound_ii :: RL -> Rational
+lowerBound_ii :: Locator -> Rational
 lowerBound_ii l = fromJust $ find go qs
   where
     go :: Rational -> Bool
@@ -65,7 +65,7 @@ lowerBound_ii l = fromJust $ find go qs
     qs :: [Rational]
     qs = map (fromInteger . (0-) . (2^)) [0..]
 -- Variant in which we take powers later, which doesn't seem to make a difference (as expected).
-lowerBound_iii :: RL -> Rational
+lowerBound_iii :: Locator -> Rational
 lowerBound_iii l = fromInteger $ (\n-> -(2^n)) $ fromJust $ out
   where
     go :: Integer -> Bool
@@ -77,16 +77,16 @@ lowerBound_iii l = fromInteger $ (\n-> -(2^n)) $ fromJust $ out
 -- Upper bounds, c.f. `lowerBound`.
 upperBound = upperBound_ii
 
-upperBound_i :: RL -> Rational
+upperBound_i :: Locator -> Rational
 upperBound_i l = head [fromInteger (q+1)|q<-[0..], l (fromInteger q) (fromInteger (q+1)) == LocatesLeft]
-upperBound_ii :: RL -> Rational
+upperBound_ii :: Locator -> Rational
 upperBound_ii l = fromJust $ find go qs
   where
     go :: Rational -> Bool
     go q = locatesLeft l q (q + 1)
     qs :: [Rational]
     qs = map (fromInteger . (2^)) [0..]
-upperBound_iii :: RL -> Rational
+upperBound_iii :: Locator -> Rational
 upperBound_iii l = fromInteger $ (\n-> (2^n)) $ fromJust $ find go qs
   where
     go :: Integer -> Bool
@@ -130,11 +130,11 @@ spernerFind f xs =
   in (xs !! i)
 
 -- Application of Sperner's lemma to locators.
-spernerLocate :: RL -> [Rational] -> Int
+spernerLocate :: Locator -> [Rational] -> Int
 spernerLocate l qs = sperner (\(q, r) -> locatesLeft l q r) (zip (init qs) (tail qs))
 
 -- Output rationals rather than an index, c.f. `spernerFind`
-spernerLocateFind :: RL -> [Rational] -> (Rational, Rational)
+spernerLocateFind :: Locator -> [Rational] -> (Rational, Rational)
 spernerLocateFind l qs =
   let i = spernerLocate l qs
   in (qs !! i , qs !! (i+2))
@@ -154,11 +154,11 @@ sperner' f start end = go start end
             | otherwise      = go left mid
       in x
 
-spernerLocate' :: RL -> (Integer -> Rational) -> Integer -> Integer -> Integer
+spernerLocate' :: Locator -> (Integer -> Rational) -> Integer -> Integer -> Integer
 spernerLocate' l f start end =
   sperner' (\i -> locatesLeft l (f i) (f (i + 1))) start end
 
-spernerLocateFind' :: RL -> (Integer -> Rational) -> Integer -> Integer -> (Rational, Rational)
+spernerLocateFind' :: Locator -> (Integer -> Rational) -> Integer -> Integer -> (Rational, Rational)
 spernerLocateFind' l f start end =
   let i = spernerLocate' l f start end
   in (f (fromIntegral i) , f (fromIntegral i+2))
@@ -167,7 +167,7 @@ spernerLocateFind' l f start end =
 -- `epsilon`, find rationals `(u, v)` with `u<x<v` and `v-u<epsilon`
 tightBound = tightBound_ii
 
-tightBound_i :: RL -> Rational -> (Rational, Rational)
+tightBound_i :: Locator -> Rational -> (Rational, Rational)
 tightBound_i l epsilon =
   let q = lowerBound l
       r = upperBound l
@@ -180,6 +180,8 @@ tightBound_i l epsilon =
       qs = [start, q .. end]
   in
     spernerLocateFind l qs
+
+e = mkLimit (\n -> mkRat ((1+1%n) ^ (fromIntegral n)))
 
 infixl 6 +:+
 infixl 7 *:*
@@ -195,7 +197,7 @@ infixl 7 *:*
 
 -- compute rationals without reducing because comparison is
 -- reduction-independent
-tightBound_ii :: RL -> Rational -> (Rational, Rational)
+tightBound_ii :: Locator -> Rational -> (Rational, Rational)
 tightBound_ii l epsilon =
   let q = lowerBound l
       r = upperBound l
@@ -209,11 +211,11 @@ tightBound_ii l epsilon =
     spernerLocateFind' l f (-1) (n+1)
 
 -- Given a locator for a real `x`, construct a locator for `-x`.
-mkMinus :: RL -> RL
+mkMinus :: Locator -> Locator
 mkMinus l q r = opposite $ l (-r) (-q)
 
 -- Given locators for `x` and `y`, construct a locator for `x+y`.
-mkPlus :: RL -> RL -> RL
+mkPlus :: Locator -> Locator -> Locator
 mkPlus l m q r =
   let epsilon = (r -:- q) /:/ 2
       (u, _) = tightBound l epsilon
@@ -225,11 +227,11 @@ mkPlus l m q r =
 --
 -- This specialization of `mkPlus` is vastly more efficient as it
 -- avoids calling `tightBound`.
-mkPlusRat :: RL -> Rational -> RL
+mkPlusRat :: Locator -> Rational -> Locator
 mkPlusRat l s q r = l (q-:-s) (r-:-s)
 
 -- Construct a locator for `min(x,y)`
-mkMin :: RL -> RL -> RL
+mkMin :: Locator -> Locator -> Locator
 mkMin l m q r =
   case (l q r, m q r) of
     (LocatesRight, LocatesRight) -> LocatesRight
@@ -239,13 +241,13 @@ mkMin l m q r =
 mkMax = mkMax_i -- seemingly no performance difference (as expected
                 -- because the Core probably looks the same)
 
-mkMax_i :: RL -> RL -> RL
+mkMax_i :: Locator -> Locator -> Locator
 mkMax_i l m q r =
   case (l q r, m q r) of
     (LocatesLeft, LocatesLeft) -> LocatesLeft
     _ -> LocatesRight
 
-mkMax_ii :: RL -> RL -> RL
+mkMax_ii :: Locator -> Locator -> Locator
 mkMax_ii l m q r =
   case (l q r) of
     LocatesLeft -> case m q r of
@@ -255,13 +257,13 @@ mkMax_ii l m q r =
 
 -- Given a locator for `x`, construct a locator for the absolute value
 -- `|x|`
-mkAbs :: RL -> RL
+mkAbs :: Locator -> Locator
 mkAbs l = mkMax l (mkMinus l)
 
 -- Construct a locator for the product `x*y`.
 mkTimes = mkTimes_iii
 
-mkTimes_i :: RL -> RL -> RL
+mkTimes_i :: Locator -> Locator -> Locator
 mkTimes_i l m q r =
   let bimax = mkPlus (mkMax (mkAbs l) (mkAbs m)) (mkRat 1)
       z = upperBound bimax
@@ -281,7 +283,7 @@ mkTimes_i l m q r =
 -- `m`, we approximate `m` to the same precision as we do `l`.
 -- However, this is not needed: because of the smallness of `l`, it
 -- suffices to approximate `m` badly.
-mkTimes_ii :: RL -> RL -> RL
+mkTimes_ii :: Locator -> Locator -> Locator
 mkTimes_ii l m q r =
   let bimax = mkPlusRat (mkMax (mkAbs l) (mkAbs m)) 1
       z = upperBound bimax
@@ -298,7 +300,7 @@ mkTimes_ii l m q r =
 
 -- Approximate l and m to cross-wise precision.
 -- NB these computations have not been checked. Are the error bounds OK?
-mkTimes_iii :: RL -> RL -> RL
+mkTimes_iii :: Locator -> Locator -> Locator
 mkTimes_iii l m q r =
   let xmax = mkPlusRat (mkAbs l) 1
       z = upperBound xmax
@@ -347,7 +349,7 @@ enum_QQpos = kart_i3 enum_Q enum_Qpos
 -- in between them
 archStruct = archStruct_ii
 
-archStruct_i :: RL -> RL -> Rational
+archStruct_i :: Locator -> Locator -> Rational
 archStruct_i l m =
   let (q , epsilon) = fromJust $ find (\ p@(q , epsilon) -> l (q - epsilon) q == LocatesLeft && m q (q + epsilon) == LocatesRight) enum_QQpos
   in q
@@ -357,7 +359,7 @@ enum_QQpos' :: [(Rational, Rational)]
 enum_QQpos' = zip enum_Q $ map (1%) [1..]
 
 -- skip some useless searches that *increase* epsilon
-archStruct_ii :: RL -> RL -> Rational
+archStruct_ii :: Locator -> Locator -> Rational
 archStruct_ii l m =
   let (q , epsilon) = fromJust $ find (\ p@(q , epsilon) -> l (q - epsilon) q == LocatesLeft && m q (q + epsilon) == LocatesRight) enum_QQpos'
   in q
@@ -366,7 +368,7 @@ data Side = FirstLocatesLeft | SecondLocatesRight
 -- A kind of cotransitivity of reals with locators: if `x<y` then
 -- either `x<s` or `s<y`.  In fact, this also holds for a real `z`
 -- with a locator, but we do not need this.
-cotrans :: RL -> RL -> Rational -> Side
+cotrans :: Locator -> Locator -> Rational -> Side
 cotrans l m s =
   let q = archStruct l m
   in case q <= s of
@@ -377,7 +379,7 @@ cotrans l m s =
 -- multiplicative inverse.
 mkReciprocalPos = mkReciprocalPos_ii
 
-mkReciprocalPos_i :: RL -> RL
+mkReciprocalPos_i :: Locator -> Locator
 mkReciprocalPos_i l q r =
   let qx = mkTimes (mkRat q) l
       rx = mkTimes (mkRat r) l
@@ -391,7 +393,7 @@ mkReciprocalPos_i l q r =
 -- but wlog 0<q (o/w q<=0<x so q<x)
 -- and so  equiv:  (x < 1/q) + (1/r < x)
 -- i.e. (1/r < x) + (x < 1/q)
-mkReciprocalPos_ii :: RL -> RL
+mkReciprocalPos_ii :: Locator -> Locator
 mkReciprocalPos_ii l q r
   | q <= 0    = LocatesRight
   | otherwise = opposite $ l (1/r) (1/q)
@@ -400,7 +402,7 @@ mkReciprocalPos_ii l q r
 -- multiplicative inverse.
 mkReciprocalNeg = mkReciprocalNeg_ii
 
-mkReciprocalNeg_i :: RL -> RL
+mkReciprocalNeg_i :: Locator -> Locator
 mkReciprocalNeg_i l q r =
   let qx = mkTimes (mkRat q) l
       rx = mkTimes (mkRat r) l
@@ -414,7 +416,7 @@ mkReciprocalNeg_i l q r =
 -- but wlog r<0 (o/w 0 <= 1/r so x < 0 <= 1/r, so rx < 1, so x^-1 < r)
 -- and so  equiv:  (x < 1/q) + (1/r < x)
 -- i.e. (1/r < x) + (x < 1/q), which can be decided because q<r<0 i.e. 1/r < 1/q
-mkReciprocalNeg_ii :: RL -> RL
+mkReciprocalNeg_ii :: Locator -> Locator
 mkReciprocalNeg_ii l q r
   | 0 <= r    = LocatesLeft
   | otherwise = opposite $ l (1/r) (1/q)
@@ -424,7 +426,7 @@ data Sign = Positive | Negative deriving (Show, Eq)
 -- `0<x`.  However, since we do not represent inequalities in this
 -- development, we need to compute the sign of `x` explicitly, which
 -- we do using the locator.
-decideSign :: RL -> Sign
+decideSign :: Locator -> Sign
 decideSign l = head $ catMaybes $ map go (tail integers)
   where
     go :: Integer -> Maybe Sign
@@ -434,7 +436,7 @@ decideSign l = head $ catMaybes $ map go (tail integers)
 
 -- Having first computed the sign of `x`, where `x#0`, we can compute
 -- its reciprocal.
-mkReciprocal :: RL -> RL
+mkReciprocal :: Locator -> Locator
 mkReciprocal l =
   case decideSign l of
     Positive -> mkReciprocalPos l
@@ -442,18 +444,18 @@ mkReciprocal l =
 
 -- Given a regular sequence of locators, compute a locator for its limit
 -- Here, regular means |x_m-x_n|<(1/m)+(1/n)
-mkLimit :: (Integer -> RL) -> RL
+mkLimit :: (Integer -> Locator) -> Locator
 mkLimit ls q r =
   let epsilon = (r - q) / 3
   in ls (ceiling (1 / epsilon)) (q + epsilon) (r - epsilon) -- just made a guess w.r.t the error bound here
 
-intBound :: RL -> Integer
+intBound :: Locator -> Integer
 intBound l =
   let (u, v) = tightBound l 1
   in (floor u) + 1
 
 -- Signed-digit representaion.
-sdr :: RL -> (Integer, [Int])
+sdr :: Locator -> (Integer, [Int])
 sdr l = (k, tail ds) where
   k :: Integer
   k = intBound l
@@ -475,10 +477,18 @@ sdr l = (k, tail ds) where
   (_, _, ds) = unzip3 go
 
 -- Initial segment of the signed-digit representation
-sdrFinite :: RL -> Int -> (Integer, [Int])
+sdrFinite :: Locator -> Int -> (Integer, [Int])
 sdrFinite l n =
   let (k, ds) = sdr l
   in (k, take n ds)
+
+sdrDouble :: Locator -> Int -> Double
+sdrDouble l n =
+  let (k, ds) = sdrFinite l n
+      vs = map (\(d, p) -> fromIntegral d * 10 ** (-p)) $ zip ds [1..]
+      x :: Double
+      x = fromIntegral k + sum vs
+   in x
 
 main = do
   let q1 = mkRat 1
@@ -520,11 +530,8 @@ main = do
   print "intBound"
   print $ intBound (q 100.5)
   print "sdr"
-  let q2 _ = mkRat 20 -- let q2 = mkRat' 2
-  --print $ sdrFinite (mkPlus (q2 "a") (mkPlus (q2 "b") (mkPlus (q2 "c") (mkPlus (q2 "d") (mkPlus (q2 "e") (mkPlus (q2 "f") (mkPlus (q2 "g") (mkPlus (q2 "h") (q2 "i"))))))))) 5
-  print $ sdrFinite (mkTimes (q2 "a") (mkTimes (q2 "b") (mkTimes (q2 "c") (q2 "d")))) 5
-  -- let q2' = mkRat' 2
-  -- print $ tightBound (mkTimes (q2' "a") (mkPlus (q2' "b") (q2' "c"))) (1/100000000)
+  let q2 = mkRat 2
+  print $ sdrFinite (mkTimes q2 (mkTimes q2 (mkTimes q2 q2))) 5
   print $ sdrFinite (q (1/3)) 10
   print $ sdrFinite (q (1/7)) 10
   print $ sdrFinite (q' (1/7)) 10
